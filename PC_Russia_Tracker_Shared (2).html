@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Petty Cash Tracker — Russia</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f5f7;--surface:#ffffff;--surface2:#f8f9fb;--surface3:#eef0f4;
+  --border:#e2e5eb;--border2:#d0d4dc;
+  --ink:#1a1d23;--ink2:#4a5068;--ink3:#8b91a7;
+  --accent:#3b5bdb;--accent-light:#eef2ff;--accent-glow:rgba(59,91,219,.12);
+  --green:#0f9d6a;--green-light:#e6f7f2;--green-border:#a7dece;
+  --red:#e03131;--red-light:#fff0f0;--red-border:#ffc0c0;
+  --amber:#d48806;--amber-light:#fffbe6;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;--r:10px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.app{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),#6741d9);border-radius:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(59,91,219,.25);flex-shrink:0}
+.brand-icon svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.brand-text h1{font-size:17px;font-weight:700;color:var(--ink);letter-spacing:-.3px}
+.brand-text p{font-size:12px;color:var(--ink3);margin-top:1px}
+.sync-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;color:var(--ink2)}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0}
+.sync-dot.syncing{background:var(--amber);animation:blink .8s infinite}
+.sync-dot.err{background:var(--red)}
+.rate-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.rate-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#6741d9)}
+.rate-pill{background:var(--accent-light);color:var(--accent);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;flex-shrink:0;border:1px solid rgba(59,91,219,.2)}
+.rate-num{font-family:var(--mono);font-size:24px;font-weight:500;color:var(--ink);letter-spacing:-1px;line-height:1}
+.rate-num em{font-size:13px;color:var(--ink3);font-style:normal;font-weight:400;letter-spacing:0}
+.rate-sub{font-size:11px;color:var(--ink3);margin-top:3px}
+.rate-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)}
+.pulse{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
+.pulse.live{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2);animation:rip 2s infinite}
+.pulse.loading{background:var(--amber);animation:blink .8s infinite}
+.pulse.error{background:var(--red)}
+@keyframes rip{0%,100%{box-shadow:0 0 0 3px rgba(34,197,94,.2)}50%{box-shadow:0 0 0 6px rgba(34,197,94,.05)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.rate-src{font-size:11px;color:var(--ink3);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 9px;white-space:nowrap}
+.rate-time{font-size:11px;color:var(--ink3);margin-left:auto}
+.btn-sm{background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:6px 13px;font-size:12px;color:var(--ink2);cursor:pointer;font-family:var(--sans);transition:.18s;white-space:nowrap;font-weight:500}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.btn-sm:disabled{opacity:.4;cursor:default}
+.manual-wrap{display:flex;align-items:center;gap:7px;border-left:1px solid var(--border);padding-left:14px}
+.manual-wrap label{font-size:11px;color:var(--ink3);white-space:nowrap;font-weight:500}
+.manual-wrap input{width:100px;padding:5px 9px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;font-family:var(--mono);font-size:13px;color:var(--ink);text-align:center;outline:none;transition:.18s}
+.manual-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.tabs{display:flex;gap:3px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px;width:fit-content;box-shadow:var(--shadow)}
+.tab{padding:7px 18px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--ink2);font-family:var(--sans);transition:.18s}
+.tab.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(59,91,219,.3)}
+.tab:hover:not(.active){background:var(--surface2);color:var(--ink)}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.s-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.s-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.s-card.in::after{background:var(--green)}.s-card.out::after{background:var(--red)}.s-card.bal::after{background:var(--accent)}.s-card.cnt::after{background:var(--amber)}
+.s-lbl{font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+.s-val{font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:-.5px}
+.s-val.green{color:var(--green)}.s-val.red{color:var(--red)}.s-val.accent{color:var(--accent)}.s-val.amber{color:var(--amber)}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow);transition:border-color .25s}
+.form-card.is-in{border-color:var(--green-border);border-top:3px solid var(--green)}
+.form-card.is-out{border-color:var(--red-border);border-top:3px solid var(--red)}
+.type-toggle{display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--border2);margin-bottom:16px}
+.type-btn{flex:1;padding:10px 0;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--surface2);color:var(--ink3);font-family:var(--sans);transition:.18s;display:flex;align-items:center;justify-content:center;gap:6px}
+.type-btn.in.active{background:var(--green-light);color:var(--green);border-bottom:2px solid var(--green)}
+.type-btn.out.active{background:var(--red-light);color:var(--red);border-bottom:2px solid var(--red)}
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+.form-grid .field.wide{grid-column:span 2}
+@media(max-width:900px){.form-grid{grid-template-columns:1fr 1fr}.form-grid .field.wide{grid-column:span 2}}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px}
+.auto-badge{font-size:9px;background:var(--amber-light);color:var(--amber);border:1px solid rgba(212,136,6,.2);border-radius:10px;padding:1px 6px;font-weight:600}
+.field input,.field select{padding:8px 11px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;font-size:13px;font-family:var(--sans);color:var(--ink);outline:none;transition:.18s}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);background:var(--surface)}
+.ref-wrap{position:relative}
+.ref-wrap input{padding-left:32px}
+.ref-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:.5}
+.sar-box{border-radius:7px;padding:8px 11px;font-family:var(--mono);font-size:16px;font-weight:600;min-height:38px;display:flex;align-items:center;transition:.25s}
+.form-actions{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn-add{border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:.18s;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.btn-add.in{background:var(--green);color:#fff;box-shadow:0 2px 8px rgba(15,157,106,.25)}
+.btn-add.in:hover{background:#0c8a5d}
+.btn-add.out{background:var(--red);color:#fff;box-shadow:0 2px 8px rgba(224,49,49,.25)}
+.btn-add.out:hover{background:#c92a2a}
+.btn-add:disabled{opacity:.5;cursor:default;transform:none!important}
+.ref-hint{font-size:11px;color:var(--ink3)}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.tbl-hdr{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;background:var(--surface)}
+.tbl-title{font-size:14px;font-weight:600;color:var(--ink)}
+.tbl-acts{display:flex;gap:8px}
+.btn-export{background:var(--green);color:#fff;border:none;border-radius:8px;padding:7px 15px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;gap:6px;transition:.18s}
+.btn-export:hover{background:#0c8a5d}
+.btn-clear{background:none;border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:12px;color:var(--red);cursor:pointer;font-family:var(--sans);transition:.18s;font-weight:500}
+.filter-bar{display:flex;align-items:center;gap:7px;padding:9px 18px;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap}
+.filter-bar label{font-size:11px;color:var(--ink3);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.filter-btn{background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 12px;font-size:12px;color:var(--ink3);cursor:pointer;font-family:var(--sans);transition:.18s;font-weight:500}
+.filter-btn.active{background:var(--surface);color:var(--ink);border-color:var(--accent)}
+.filter-btn.in.active{background:var(--green-light);color:var(--green);border-color:var(--green-border)}
+.filter-btn.out.active{background:var(--red-light);color:var(--red);border-color:var(--red-border)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:900px}
+thead tr{background:var(--surface2);border-bottom:1px solid var(--border)}
+th{padding:9px 13px;font-size:11px;font-weight:600;color:var(--ink3);text-align:left;white-space:nowrap;text-transform:uppercase;letter-spacing:.4px}
+td{padding:9px 13px;font-size:13px;border-top:1px solid var(--border);color:var(--ink2);vertical-align:middle}
+tr:hover td{background:#fafbfc}
+.mn{font-family:var(--mono);color:var(--ink);font-size:13px}
+.td-rate{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.td-in{font-family:var(--mono);font-weight:600;color:var(--green)}
+.td-out{font-family:var(--mono);font-weight:600;color:var(--red)}
+.td-bal{font-family:var(--mono);font-weight:700;color:var(--accent)}
+.td-bal.neg{color:var(--red)}
+.type-badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.type-badge.in{background:var(--green-light);color:var(--green);border:1px solid var(--green-border)}
+.type-badge.out{background:var(--red-light);color:var(--red);border:1px solid var(--red-border)}
+.btn-del{background:none;border:none;cursor:pointer;color:var(--ink3);padding:3px 6px;border-radius:5px;font-size:15px;line-height:1;transition:.15s}
+.btn-del:hover{color:var(--red);background:var(--red-light)}
+.empty-td{text-align:center;padding:44px 20px;color:var(--ink3);font-size:13px}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#fff;padding:10px 22px;border-radius:30px;font-size:13px;opacity:0;transition:.3s;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:9999;font-size:14px;color:var(--ink2)}
+.spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:700px){.summary{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD SCREEN -->
+<div id="loginScreen" style="
+  position:fixed;inset:0;background:linear-gradient(135deg,#1E3A5F 0%,#3b5bdb 100%);
+  display:flex;align-items:center;justify-content:center;z-index:99999;flex-direction:column;gap:0">
+  <div style="background:#fff;border-radius:16px;padding:40px 36px;width:340px;max-width:90vw;box-shadow:0 24px 64px rgba(0,0,0,.25);text-align:center">
+    <div style="width:56px;height:56px;background:linear-gradient(135deg,#3b5bdb,#6741d9);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <h2 style="font-size:18px;font-weight:700;color:#1a1d23;margin-bottom:4px">Petty Cash Tracker</h2>
+    <p style="font-size:12px;color:#8b91a7;margin-bottom:24px">EL-MISSEH AL-RUQMI — Russia Operations</p>
+    <div style="text-align:left;margin-bottom:8px">
+      <label style="font-size:11px;font-weight:600;color:#4a5068;text-transform:uppercase;letter-spacing:.4px">Password</label>
+    </div>
+    <div style="position:relative;margin-bottom:16px">
+      <input type="password" id="pwInput" placeholder="Enter password..."
+        onkeydown="if(event.key==='Enter')checkPw()"
+        style="width:100%;padding:10px 40px 10px 12px;border:1.5px solid #e2e5eb;border-radius:8px;font-size:14px;font-family:Inter,sans-serif;outline:none;transition:.2s;color:#1a1d23"
+        onfocus="this.style.borderColor='#3b5bdb';this.style.boxShadow='0 0 0 3px rgba(59,91,219,.12)'"
+        onblur="this.style.borderColor='#e2e5eb';this.style.boxShadow='none'">
+      <span onclick="togglePw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#8b91a7" id="eyeIcon">👁</span>
+    </div>
+    <div id="pwError" style="color:#e03131;font-size:12px;margin-bottom:12px;min-height:18px"></div>
+    <button onclick="checkPw()" style="
+      width:100%;padding:11px;background:linear-gradient(135deg,#3b5bdb,#6741d9);
+      color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;
+      cursor:pointer;font-family:Inter,sans-serif;letter-spacing:.2px;
+      box-shadow:0 4px 14px rgba(59,91,219,.3);transition:.18s"
+      onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+      Sign In →
+    </button>
+    <p style="font-size:11px;color:#8b91a7;margin-top:16px">🔒 Authorized personnel only</p>
+  </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display:none">
+  <div class="spinner"></div>
+  <div>Loading data from Google Sheets...</div>
+</div>
+
+<div class="app" id="mainApp" style="display:none">
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="brand-text">
+      <h1>Petty Cash Tracker</h1>
+      <p>EL-MISSEH AL-RUQMI For Information Technology — Russia Operations 2025–2026</p>
+    </div>
+  </div>
+  <div class="sync-bar">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncTxt">Connected to Google Sheets</span>
+    <button class="btn-sm" onclick="loadAll()" style="margin-left:4px">↺ Sync</button>
+  </div>
+</div>
+
+<!-- RATE CARD -->
+<div class="rate-card">
+  <div class="rate-pill">Live Exchange Rate</div>
+  <div>
+    <div class="rate-num" id="rateVal">—<em> ₽</em></div>
+    <div class="rate-sub">Russian Rubles per 1 Saudi Riyal (RUB / SAR)</div>
+  </div>
+  <div class="rate-status">
+    <div class="pulse loading" id="ratePulse"></div>
+    <span id="rateStatusTxt">Fetching rate...</span>
+  </div>
+  <div class="rate-time" id="rateTime"></div>
+  <div class="rate-src" id="rateSrc">—</div>
+  <button class="btn-sm" id="btnRefresh" onclick="fetchRate()">↺ Refresh</button>
+  <div class="manual-wrap">
+    <label>Manual:</label>
+    <input type="number" id="manualIn" placeholder="e.g. 21.5" step="0.0001" oninput="applyManual()">
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('russia')">Russia's Account</button>
+  <button class="tab" onclick="switchTab('yulia')">Yulia — Voinova</button>
+  <button class="tab" onclick="switchTab('abdullah')">Mr. Abdullah Card</button>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary">
+  <div class="s-card in"><div class="s-lbl">▲ Total In (SAR)</div><div class="s-val green" id="sumIn">0.00 ﷼</div></div>
+  <div class="s-card out"><div class="s-lbl">▼ Total Out (SAR)</div><div class="s-val red" id="sumOut">0.00 ﷼</div></div>
+  <div class="s-card bal"><div class="s-lbl">◆ Net Balance (SAR)</div><div class="s-val accent" id="sumBal">0.00 ﷼</div></div>
+  <div class="s-card cnt"><div class="s-lbl">Transactions</div><div class="s-val amber" id="sumCnt">0</div></div>
+</div>
+
+<!-- FORM -->
+<div class="form-card is-in" id="formCard">
+  <div class="type-toggle">
+    <button class="type-btn in active" id="btnTypeIn" onclick="setType('in')">▲ Money In / Receipt</button>
+    <button class="type-btn out" id="btnTypeOut" onclick="setType('out')">▼ Expense / Payment</button>
+  </div>
+  <div class="form-grid">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="fDate" onchange="onDateChange()">
+    </div>
+    <div class="field">
+      <label>Reference No. <span class="auto-badge">AUTO</span></label>
+      <div class="ref-wrap">
+        <span class="ref-icon">🔖</span>
+        <input type="text" id="fRef" placeholder="Auto-generated...">
+      </div>
+    </div>
+    <div class="field wide">
+      <label>Description</label>
+      <input type="text" id="fDesc" placeholder="Transaction description...">
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <select id="fCat">
+        <option>Petty Cash Replenishment</option>
+        <option>Operating Expenses</option>
+        <option>Travel</option>
+        <option>Accommodation</option>
+        <option>Meals &amp; Entertainment</option>
+        <option>Office Supplies</option>
+        <option>Communication</option>
+        <option>Salary / Advance</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Amount (RUB ₽)</label>
+      <input type="number" id="fRub" placeholder="0.00" step="0.01" oninput="previewSAR()">
+    </div>
+    <div class="field">
+      <label>Amount (SAR ﷼) <span class="auto-badge" id="sarBadge">AUTO</span></label>
+      <div style="position:relative">
+        <input type="number" id="fSar" placeholder="Auto-calculated..." step="0.01"
+          oninput="onSarManualEdit()" style="padding-left:28px;font-family:var(--mono);font-weight:600">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;color:var(--ink3)">﷼</span>
+      </div>
+      <div id="sarRateHint" style="font-size:10px;color:var(--ink3);margin-top:3px;min-height:14px"></div>
+    </div>
+    <div class="field">
+      <label>Vendor / Recipient</label>
+      <input type="text" id="fVendor" placeholder="Name or supplier">
+    </div>
+    <div class="field">
+      <label>Receipt No.</label>
+      <input type="text" id="fReceipt" placeholder="Invoice number">
+    </div>
+    <div class="field wide">
+      <label>Notes</label>
+      <input type="text" id="fNotes" placeholder="Additional notes...">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn-add in" id="btnAdd" onclick="addEntry()">
+      <span id="btnAddTxt">Add Receipt</span>
+    </button>
+    <span class="ref-hint" id="refHint"></span>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="table-card">
+  <div class="tbl-hdr">
+    <span class="tbl-title" id="tblTitle">Transactions — Russia's Account</span>
+    <div class="tbl-acts">
+      <button class="btn-export" onclick="exportExcel()">⬇ Export Excel</button>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <label>Show:</label>
+    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn in" onclick="setFilter('in',this)">▲ In only</button>
+    <button class="filter-btn out" onclick="setFilter('out',this)">▼ Out only</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Date</th><th>Reference</th><th>Description</th><th>Type</th>
+        <th>Amount (RUB)</th><th>Rate</th><th>In (SAR)</th><th>Out (SAR)</th>
+        <th>Balance (SAR)</th><th>Vendor</th><th>Notes</th><th></th>
+      </tr></thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────
+const GS_URL = 'https://script.google.com/macros/s/AKfycbz1KFcC4CcHfyx6riTjgIfjEE-CKf9rKN1GZrbT3VNm-xhJQ7KW9IMfrMGvPfeK2lYYhQ/exec';
+
+// ── STATE ─────────────────────────────────────────────────
+let currentRate=null, rateSource='', currentTab='russia';
+let currentType='in', currentFilter='all';
+let formRate=null, sarManuallyEdited=false;
+const store = {russia:[], yulia:[], abdullah:[]};
+
+// ── GOOGLE SHEETS API ─────────────────────────────────────
+async function gsCall(action, data={}) {
+  setSyncStatus('syncing','Syncing...');
+  try {
+    const res = await fetch(GS_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain'},
+      body: JSON.stringify({action, ...data})
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    setSyncStatus('ok','Synced with Google Sheets');
+    return json;
+  } catch(e) {
+    setSyncStatus('err','Sync error — check connection');
+    throw e;
+  }
+}
+
+async function loadAll() {
+  try {
+    const res = await gsCall('getAll');
+    store.russia = []; store.yulia = []; store.abdullah = [];
+    (res.data || []).forEach(row => {
+      const acc = row.account;
+      if (store[acc]) {
+        store[acc].push({
+          id: row.id,
+          type: row.type,
+          date: row.date,
+          ref: row.refNo,
+          desc: row.description,
+          cat: row.category,
+          rub: parseFloat(row.amountRUB)||0,
+          rate: parseFloat(row.rate)||0,
+          sar: row.type==='in'
+            ? parseFloat(row.amountRUB)/(parseFloat(row.rate)||1)
+            : parseFloat(row.amountRUB)/(parseFloat(row.rate)||1),
+          vendor: row.vendor||'',
+          receipt: row.receipt||'',
+          notes: row.notes||''
+        });
+      }
+    });
+    renderTable(); updateSummary(); refreshRef();
+    document.getElementById('loadingOverlay').style.display='none';
+  } catch(e) {
+    document.getElementById('loadingOverlay').style.display='none';
+    toast('⚠ Could not load data — check internet connection','err');
+  }
+}
+
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='err'?' err':'');
+  document.getElementById('syncTxt').textContent = msg;
+}
+
+// ── REF NUMBER ────────────────────────────────────────────
+function genRef(tab,type){
+  const prefix=type==='in'?'IN':'OUT';
+  const code=tab==='russia'?'RUS':tab==='yulia'?'YUL':'ABD';
+  const seq=String(store[tab].length+1).padStart(3,'0');
+  return `${code}-${prefix}-${new Date().getFullYear()}-${seq}`;
+}
+function refreshRef(){
+  const ref=genRef(currentTab,currentType);
+  document.getElementById('fRef').value=ref;
+  document.getElementById('refHint').textContent=`Suggested ref: ${ref} (editable)`;
+}
+
+// ── RATE ──────────────────────────────────────────────────
+async function fetchRate(){
+  setPulse('loading','Fetching live rate...');
+  document.getElementById('btnRefresh').disabled=true;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        system:'Return ONLY valid JSON {"rate":21.5,"source":"website"} where rate = Russian Rubles per 1 Saudi Riyal. No markdown.',
+        messages:[{role:'user',content:'Current live RUB per 1 SAR exchange rate. Return only JSON {"rate":<number>,"source":"<site>"}'}]})
+    });
+    if(res.ok){
+      const data=await res.json();
+      const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+      const m=txt.match(/\{[^{}]*"rate"\s*:\s*[\d.]+[^{}]*\}/);
+      if(m){const p=JSON.parse(m[0]);if(p.rate>0){applyRate(p.rate,p.source||'Claude Search',true);return;}}
+    }
+  }catch(e){}
+  try{const r=await fetch('https://api.exchangerate-api.com/v4/latest/SAR');if(r.ok){const d=await r.json();if(d.rates?.RUB>0){applyRate(d.rates.RUB,'exchangerate-api.com',true);return;}}}catch(e){}
+  try{const r=await fetch('https://api.frankfurter.app/latest?from=SAR&to=RUB');if(r.ok){const d=await r.json();if(d.rates?.RUB>0){applyRate(d.rates.RUB,'frankfurter.app',true);return;}}}catch(e){}
+  setPulse('error','Could not fetch rate — enter manually');
+  document.getElementById('rateSrc').textContent='—';
+  document.getElementById('btnRefresh').disabled=false;
+}
+function applyRate(rate,src,live){
+  currentRate=+parseFloat(rate).toFixed(4); rateSource=src;
+  formRate=currentRate;
+  document.getElementById('rateVal').innerHTML=currentRate.toFixed(4)+'<em> ₽</em>';
+  document.getElementById('rateSrc').textContent=src;
+  document.getElementById('rateTime').textContent='Updated: '+new Date().toLocaleTimeString('en-SA');
+  document.getElementById('manualIn').value='';
+  document.getElementById('btnRefresh').disabled=false;
+  setPulse(live?'live':'manual',live?'Live rate':'Manual rate');
+  previewSAR(); renderTable();
+}
+function applyManual(){const v=parseFloat(document.getElementById('manualIn').value);if(v>0)applyRate(v,'Manual entry',false);}
+function setPulse(s,t){document.getElementById('ratePulse').className='pulse '+s;document.getElementById('rateStatusTxt').textContent=t;}
+
+// ── TYPE / DATE / SAR ─────────────────────────────────────
+function setType(type){
+  currentType=type;
+  document.getElementById('btnTypeIn').classList.toggle('active',type==='in');
+  document.getElementById('btnTypeOut').classList.toggle('active',type==='out');
+  document.getElementById('formCard').className='form-card is-'+(type==='in'?'in':'out');
+  document.getElementById('btnAdd').className='btn-add '+(type==='in'?'in':'out');
+  document.getElementById('btnAddTxt').textContent=type==='in'?'Add Receipt':'Add Expense';
+  document.getElementById('fCat').value=type==='in'?'Petty Cash Replenishment':'Operating Expenses';
+  refreshRef(); previewSAR();
+}
+async function onDateChange(){
+  const date=document.getElementById('fDate').value;
+  if(!date)return;
+  const today=new Date().toISOString().slice(0,10);
+  if(date>=today){formRate=currentRate;setSarHint(currentRate,'Live rate (today)',false);calcSAR();return;}
+  setSarHint(null,'Fetching rate for this date...',true);
+  try{
+    const r=await fetch(`https://api.frankfurter.app/${date}?from=SAR&to=RUB`);
+    if(r.ok){const d=await r.json();if(d.rates?.RUB>0){formRate=+d.rates.RUB.toFixed(4);setSarHint(formRate,`Rate on ${date}`,false);sarManuallyEdited=false;calcSAR();return;}}
+  }catch(e){}
+  formRate=currentRate;setSarHint(currentRate,'Using live rate',false);calcSAR();
+}
+function setSarHint(rate,msg,loading){
+  const hint=document.getElementById('sarRateHint');
+  hint.textContent=rate?`Rate: ${rate.toFixed(4)} ₽/﷼  •  ${msg}`:msg;
+  hint.style.color=loading?'var(--amber)':'var(--ink3)';
+  const badge=document.getElementById('sarBadge');
+  badge.textContent=loading?'...':'AUTO';
+}
+function calcSAR(){
+  if(sarManuallyEdited)return;
+  const rub=parseFloat(document.getElementById('fRub').value);
+  const rate=formRate||currentRate;
+  const sarEl=document.getElementById('fSar');
+  if(!rub||rub<=0||!rate){sarEl.value='';return;}
+  sarEl.value=(rub/rate).toFixed(2);
+}
+function onSarManualEdit(){sarManuallyEdited=true;}
+function previewSAR(){if(!sarManuallyEdited)calcSAR();}
+
+// ── ADD ENTRY ─────────────────────────────────────────────
+async function addEntry(){
+  const date=document.getElementById('fDate').value;
+  const rub=parseFloat(document.getElementById('fRub').value);
+  const sarInput=parseFloat(document.getElementById('fSar').value);
+  if(!date){toast('⚠ Please enter a date','err');return;}
+  if(!rub||rub<=0){toast('⚠ Please enter amount in RUB','err');return;}
+  if(!sarInput||sarInput<=0){toast('⚠ SAR amount missing','err');return;}
+  const usedRate=formRate||currentRate||1;
+  const ref=document.getElementById('fRef').value.trim()||genRef(currentTab,currentType);
+  const entry={
+    account: currentTab,
+    date, refNo: ref,
+    description: document.getElementById('fDesc').value.trim(),
+    category: document.getElementById('fCat').value,
+    type: currentType,
+    amountRUB: rub,
+    rate: usedRate,
+    vendor: document.getElementById('fVendor').value.trim(),
+    receipt: document.getElementById('fReceipt').value.trim(),
+    notes: document.getElementById('fNotes').value.trim()
+  };
+  const btn=document.getElementById('btnAdd');
+  btn.disabled=true; btn.textContent='Saving...';
+  try{
+    const res = await gsCall('addRow', entry);
+    // add locally too for instant display
+    store[currentTab].push({
+      id: res.id, type:currentType, date, ref,
+      desc: entry.description, cat: entry.category,
+      rub, rate: usedRate, sar: sarInput,
+      vendor: entry.vendor, receipt: entry.receipt, notes: entry.notes
+    });
+    renderTable(); updateSummary(); clearForm();
+    toast(currentType==='in'?'✓ Receipt saved to Google Sheets':'✓ Expense saved to Google Sheets','ok');
+  }catch(e){
+    toast('⚠ Failed to save — check connection','err');
+  }
+  btn.disabled=false;
+  btn.textContent=currentType==='in'?'Add Receipt':'Add Expense';
+}
+
+// ── DELETE ────────────────────────────────────────────────
+async function deleteEntry(id){
+  if(!confirm('Delete this transaction?'))return;
+  try{
+    await gsCall('deleteRow',{id});
+    store[currentTab]=store[currentTab].filter(e=>e.id!==id);
+    renderTable(); updateSummary();
+    toast('✓ Deleted','ok');
+  }catch(e){toast('⚠ Delete failed','err');}
+}
+
+// ── CLEAR FORM ────────────────────────────────────────────
+function clearForm(){
+  ['fDesc','fRub','fSar','fVendor','fReceipt','fNotes'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('sarRateHint').textContent='';
+  document.getElementById('sarBadge').textContent='AUTO';
+  sarManuallyEdited=false; formRate=currentRate;
+  refreshRef();
+}
+
+// ── FILTER ────────────────────────────────────────────────
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderTable();
+}
+
+// ── TABLE ─────────────────────────────────────────────────
+function renderTable(){
+  const body=document.getElementById('tblBody');
+  let rows=store[currentTab];
+  if(currentFilter!=='all')rows=rows.filter(e=>e.type===currentFilter);
+  if(!rows.length){body.innerHTML='<tr><td colspan="13" class="empty-td">No transactions yet</td></tr>';return;}
+  const all=[...store[currentTab]].sort((a,b)=>a.date.localeCompare(b.date));
+  const balMap={}; let running=0;
+  all.forEach(e=>{running+=(e.type==='in'?e.sar:-e.sar);balMap[e.id]=running;});
+  body.innerHTML=rows.map((e,i)=>{
+    const bal=balMap[e.id];
+    return `<tr>
+      <td style="font-size:11px;font-family:var(--mono);color:var(--ink3)">${i+1}</td>
+      <td class="mn" style="font-size:12px">${e.date}</td>
+      <td style="font-size:11px;color:var(--ink3);font-family:var(--mono)">${e.ref||'—'}</td>
+      <td style="color:var(--ink)">${e.desc||'—'}</td>
+      <td><span class="type-badge ${e.type}">${e.type==='in'?'▲ In':'▼ Out'}</span></td>
+      <td class="mn">${fmt(e.rub)} ₽</td>
+      <td class="td-rate">${(e.rate||0).toFixed(4)}</td>
+      <td class="td-in">${e.type==='in'?fmt(e.sar)+' ﷼':'—'}</td>
+      <td class="td-out">${e.type==='out'?fmt(e.sar)+' ﷼':'—'}</td>
+      <td class="td-bal${bal<0?' neg':''}">${fmt(bal)} ﷼</td>
+      <td style="font-size:12px">${e.vendor||'—'}</td>
+      <td style="font-size:12px;color:var(--ink3)">${e.notes||'—'}</td>
+      <td><button class="btn-del" onclick="deleteEntry('${e.id}')">×</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateSummary(){
+  const rows=store[currentTab];
+  const tIn=rows.filter(e=>e.type==='in').reduce((s,e)=>s+e.sar,0);
+  const tOut=rows.filter(e=>e.type==='out').reduce((s,e)=>s+e.sar,0);
+  const bal=tIn-tOut;
+  document.getElementById('sumIn').textContent=fmt(tIn)+' ﷼';
+  document.getElementById('sumOut').textContent=fmt(tOut)+' ﷼';
+  const b=document.getElementById('sumBal');
+  b.textContent=fmt(bal)+' ﷼'; b.className='s-val '+(bal<0?'red':'accent');
+  document.getElementById('sumCnt').textContent=rows.length;
+}
+
+function switchTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',
+    (i===0&&tab==='russia')||(i===1&&tab==='yulia')||(i===2&&tab==='abdullah')));
+  const titles={russia:"Transactions — Russia's Account",yulia:"Transactions — Yulia Voinova",abdullah:"Transactions — Mr. Abdullah Card"};
+  document.getElementById('tblTitle').textContent=titles[tab];
+  renderTable(); updateSummary(); refreshRef();
+}
+
+// ── EXPORT ────────────────────────────────────────────────
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+  [{key:'russia',name:"Russia's Account"},{key:'yulia',name:"Yulia — Voinova"},{key:'abdullah',name:"Mr. Abdullah Card"}].forEach(sh=>{
+    const rows=store[sh.key];
+    const tIn=rows.filter(e=>e.type==='in').reduce((s,e)=>s+e.sar,0);
+    const tOut=rows.filter(e=>e.type==='out').reduce((s,e)=>s+e.sar,0);
+    const ws=XLSX.utils.aoa_to_sheet([
+      ['Petty Cash Tracker — Russia Operations'],
+      ['Company','EL-MISSEH AL-RUQMI For Information Technology'],
+      ['Account',sh.name,'','Total IN',+tIn.toFixed(2),'Total OUT',+tOut.toFixed(2),'Balance',+(tIn-tOut).toFixed(2)],
+      [],
+      ['Date','Reference','Description','Category','Type','Amount (RUB)','Rate','In (SAR)','Out (SAR)','Balance (SAR)','Vendor','Notes']
+    ]);
+    let bal=0;
+    rows.forEach((e,i)=>{
+      bal+=(e.type==='in'?e.sar:-e.sar);
+      XLSX.utils.sheet_add_aoa(ws,[[e.date,e.ref,e.desc,e.cat,e.type==='in'?'IN':'OUT',
+        +e.rub.toFixed(2),+(e.rate||0).toFixed(4),
+        e.type==='in'?+e.sar.toFixed(2):'',
+        e.type==='out'?+e.sar.toFixed(2):'',
+        +bal.toFixed(2),e.vendor||'',e.notes||'']],{origin:{r:5+i,c:0}});
+    });
+    ws['!cols']=[12,20,28,22,6,14,14,14,14,16,18,20].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,sh.name);
+  });
+  XLSX.writeFile(wb,`PC_Russia_${new Date().getFullYear()}.xlsx`);
+  toast('✓ Excel exported','ok');
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function fmt(n){return typeof n==='number'?n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
+function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show'+(type?' '+type:'');clearTimeout(window._tt);window._tt=setTimeout(()=>el.className='toast',3000)}
+
+// ── PASSWORD ──────────────────────────────────────────────
+const PASS = 'WHT@2030';
+function checkPw(){
+  const val=document.getElementById('pwInput').value;
+  if(val===PASS){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+    document.getElementById('loadingOverlay').style.display='flex';
+    initApp();
+  } else {
+    const err=document.getElementById('pwError');
+    err.textContent='⚠ Incorrect password — try again';
+    document.getElementById('pwInput').value='';
+    document.getElementById('pwInput').style.borderColor='#e03131';
+    setTimeout(()=>{err.textContent='';document.getElementById('pwInput').style.borderColor='#e2e5eb';},3000);
+  }
+}
+function togglePw(){
+  const inp=document.getElementById('pwInput');
+  const eye=document.getElementById('eyeIcon');
+  if(inp.type==='password'){inp.type='text';eye.textContent='🙈';}
+  else{inp.type='password';eye.textContent='👁';}
+}
+function initApp(){
+  document.getElementById('fDate').valueAsDate=new Date();
+  setType('in'); fetchRate(); loadAll();
+}
+
+// ── INIT ──────────────────────────────────────────────────
+// App starts after password check
+</script>
+</body>
+</html>
